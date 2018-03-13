@@ -1,10 +1,8 @@
 #-*- coding:utf-8 -*-
-import urllib
+import sys
 import urllib2
 from bs4 import BeautifulSoup  
-import re
 from urllib import quote
-import sys
 import signal
 
 reload(sys)
@@ -43,16 +41,26 @@ def get_topic_detail(url):
 	request = urllib2.Request(url,headers = headers)
 	response = urllib2.urlopen(request)
 	soup = BeautifulSoup(response.read(),'lxml')
-	topic_detail = soup.find('div', class_='post-topic-des')
-	text = ''
-	for x in topic_detail:
+	topic_content = soup.find('div', class_='post-topic-des')
+	content = ''
+	for x in topic_content:
 		if x.string:
-			text += x.string
-	return text.encode('utf-8')
+			content += x.string
+
+	date = soup.find('span', class_='post-time').string
+
+	return content.encode('utf-8'), date
 
 
 def handler(signum, frame):
     raise AssertionError
+
+
+class data():
+	title = ''
+	href = ''
+	date = ''
+	content = ''
 
 
 if __name__ == '__main__':
@@ -61,12 +69,12 @@ if __name__ == '__main__':
 	whitelist: 只保存含有白名单关键词的帖子
 	blacklist: 不保存含有黑名单关键词的帖子
 	'''
-	query = '数据挖掘 实习 面经'
+	query = '机器学习 实习 面经'
 	page_start = 1
 	page_end = 200
 	base_url = "https://www.nowcoder.com/search?type=post&order=time"
 	whitelist = ['机器学习', '数据挖掘', 'svm', 'nlp', '深度学习', 'deep', 'cnn', '卷积', '大数据', '挖掘']
-	blacklist = ['吗', '?', '？', '求']
+	blacklist = ['吗', '?', '？', '求', '有没有', '不知道', '如何', '怎么办']
 
 	targets = searchhref(query, page_start, page_end)
 
@@ -74,7 +82,8 @@ if __name__ == '__main__':
 	count_saved = 0
 	valid = False
 
-	with open('数据挖掘实习面经.txt', 'w+') as f:
+	results = []
+	with open('机器学习实习面经.txt', 'w+') as f:
 		for title in targets:
 			try:
 				#超时检测
@@ -83,22 +92,32 @@ if __name__ == '__main__':
 
 				if not any(s in title for s in blacklist):
 					href = targets[title]
-					topic_detail = get_topic_detail(href)
+					content, date = get_topic_detail(href)
 					#一个utf-8中文字符的len是3, http://blog.csdn.net/handsomekang/article/details/9397025
-					if len(topic_detail) > 150 and any(s in topic_detail for s in whitelist):
-						f.write(title)
-						f.write('\n')
-						f.write(href)
-						f.write('\n')
-						f.write(''+topic_detail)
-						f.write('\n')
-						f.write('=======================================================')
-						f.write('\n')
+					if len(content) > 150 and any(s in content for s in whitelist):
+						d = data()
+						d.title = title
+						d.href = href.split('\n')[0]
+						d.date = date[date.find('201'):]
+						d.content = '' + content
+						results.append(d)
+
+
 						count_saved += 1
 						valid = True
 				count_all += 1
 				if valid:
-					print '已处理' + str(count_all) + '个帖子, 保存' + str(count_saved) + '个帖子, 有效率为' + str(round(count_saved / float(count_all), 4)*100) + '%, title:' + title
+					print '已处理' + str(count_all) + '个帖子, 采集' + str(count_saved) + '个帖子, 有效率为' + str(round(count_saved / float(count_all), 4)*100) + '%, title:' + title
 				valid = False
 			except:
 				pass
+		# 按照最后更新日期进行排序
+		results = sorted(results, key=lambda x: x.date, reverse=True)
+		for x in results:
+			f.write(x.title + '\n')
+			f.write(x.href + '\n')
+			f.write(x.date + '\n')
+			f.write(x.content + '\n')
+			f.write('=======================================================' + '\n')
+
+
