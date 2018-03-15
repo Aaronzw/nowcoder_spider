@@ -4,6 +4,8 @@ import urllib2
 from bs4 import BeautifulSoup  
 from urllib import quote
 import signal
+from datetime import timedelta, datetime  
+
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -71,7 +73,7 @@ if __name__ == '__main__':
 	'''
 	query = '机器学习 实习 面经'
 	page_start = 1
-	page_end = 200
+	page_end = 50
 	base_url = "https://www.nowcoder.com/search?type=post&order=time"
 	whitelist = ['机器学习', '数据挖掘', 'svm', 'nlp', '深度学习', 'deep', 'cnn', '卷积', '大数据', '挖掘']
 	blacklist = ['吗', '?', '？', '求', '有没有', '不知道', '如何', '怎么办']
@@ -94,15 +96,15 @@ if __name__ == '__main__':
 					href = targets[title]
 					content, date = get_topic_detail(href)
 					#一个utf-8中文字符的len是3, http://blog.csdn.net/handsomekang/article/details/9397025
-					if len(content) > 150 and any(s in content for s in whitelist):
+					if len(content) > 200 and any(s in content for s in whitelist):
 						d = data()
 						d.title = title
 						d.href = href.split('\n')[0]
+						date = date.replace('今天', time.strftime("%Y-%m-%d", time.localtime()))
+						date = date.replace('昨天', (datetime.today() + timedelta(-1)).strftime("%Y-%m-%d"))
 						d.date = date[date.find('201'):]
 						d.content = '' + content
 						results.append(d)
-
-
 						count_saved += 1
 						valid = True
 				count_all += 1
